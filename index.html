@@ -3,166 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Geography Quiz - Pro Version</title>
+    <title>World Geography Quiz - Fixed</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Arial', sans-serif; overflow: hidden; background-color: #87CEEB; }
-        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #87CEEB; }
         #ui-container {
             position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
-            background: linear-gradient(to bottom, rgba(52, 73, 94, 0.95), rgba(44, 62, 80, 0.95));
-            padding: 8px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            background: rgba(44, 62, 80, 0.95); padding: 8px 20px;
             display: flex; align-items: center; justify-content: center; height: 70px;
+            color: white; border-bottom: 2px solid rgba(255,255,255,0.1);
         }
-        #score-corner {
-            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
-            background: rgba(0, 0, 0, 0.3); padding: 6px 12px; border-radius: 15px;
-            font-size: 13px; color: white; font-weight: bold;
-        }
-        #question-container { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        #country-name {
-            font-size: 22px; color: white; font-weight: bold; background: rgba(255, 255, 255, 0.15);
-            padding: 6px 16px; border-radius: 6px; border: 2px solid rgba(255, 255, 255, 0.25);
-        }
-        #country-flag { height: 45px; border: 1px solid white; border-radius: 3px; }
+        #score-corner { position: absolute; left: 15px; background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 20px; font-weight: bold; }
+        #country-name { font-size: 24px; font-weight: bold; margin-left: 10px; background: #2ecc71; padding: 4px 12px; border-radius: 5px; }
         #on-screen-feedback {
-            position: absolute; z-index: 1500; font-size: 14px; font-weight: bold; color: white;
-            background: rgba(0, 0, 0, 0.85); padding: 6px 12px; border-radius: 6px;
-            pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+            position: absolute; z-index: 1500; font-weight: bold; color: white;
+            background: rgba(0, 0, 0, 0.8); padding: 5px 10px; border-radius: 4px;
+            pointer-events: none; opacity: 0; transition: opacity 0.2s;
         }
         #on-screen-feedback.show { opacity: 1; }
-        #completion-screen {
-            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 2000; background: white; padding: 40px; border-radius: 15px; text-align: center;
-        }
-        .region-path { cursor: pointer; transition: fill-opacity 0.1s; }
-        .region-path:hover { fill-opacity: 0.6 !important; stroke: white !important; stroke-width: 2px; }
-        
-        /* Flash Animations */
-        @keyframes flash-white { 50% { fill: white !important; } }
-        .flash-white { animation: flash-white 0.5s; }
-        @keyframes pulse-red { 0%, 100% { fill-opacity: 1; } 50% { fill: #f44336 !important; fill-opacity: 0.5; } }
-        .pulse-red-continuous { animation: pulse-red 1s infinite !important; }
+        .region-path { cursor: pointer; transition: all 0.2s; }
+        /* FLASH & PULSE */
+        @keyframes pulse-red { 50% { fill: #e74c3c !important; fill-opacity: 0.7; } }
+        .pulse-red { animation: pulse-red 1s infinite; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 <div id="ui-container">
-    <div id="score-corner"><span id="score-value">0</span> / <span id="total-regions">0</span></div>
-    <div id="question-container">
-        <span style="color:white">Click on:</span>
-        <span id="country-name">START GAME</span>
-        <img id="country-flag" style="display:none">
-    </div>
+    <div id="score-corner">Score: <span id="score-value">0</span></div>
+    <div>Find: <span id="country-name">CLICK TO START</span></div>
 </div>
-
 <div id="on-screen-feedback"></div>
-
-<div id="completion-screen">
-    <h2>Quiz Complete! 🎉</h2>
-    <p>Accuracy: <span id="accuracy"></span></p>
-    <button id="restart-button" style="margin-top:20px; padding:10px 20px; cursor:pointer;">Play Again</button>
-</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // --- GEOMETRY PATCHES ---
-    // This fixes the "hole" in Somalia/Somaliland
-    const somaliaPatch = {
-        "type": "Polygon",
-        "coordinates": [[[41.50, -1.65], [40.99, -0.85], [40.98, 2.78], [42.76, 4.25], [44.96, 5.00], [47.78, 8.00], [48.93, 9.45], [43.3, 11.5], [48.9, 11.9], [51.2, 11.9], [51.1, 9.5], [49.2, 6.5], [45.3, 2.0], [41.50, -1.65]]]
-    };
+    const somaliaPatch = [[[41.5, -1.6], [41.0, 2.8], [42.8, 4.3], [45.0, 5.0], [49.0, 9.5], [43.3, 11.5], [48.9, 11.9], [51.2, 11.9], [51.1, 9.5], [49.2, 6.5], [45.3, 2.0], [41.5, -1.6]]];
+    
+    // Manual dots for small islands you mentioned
+    const extraIslands = [
+        { name: "Mauritius", lat: -20.348, lng: 57.552 },
+        { name: "Seychelles", lat: -4.679, lng: 55.492 },
+        { name: "Comoros", lat: -11.645, lng: 43.333 }
+    ];
 
-    let map, regionLayers = {}, markers = {};
-    let gameState = { started: false, current: null, score: 0, attempts: 0, remaining: [], total: 0 };
+    let map, gameState = { started: false, current: null, score: 0, remaining: [] };
+    let layers = {};
 
     function init() {
-        map = L.map('map', { minZoom: 2, maxZoom: 7 }).setView([20, 0], 2);
-        loadData();
+        map = L.map('map', { center: [10, 20], zoom: 3, minZoom: 2, attributionControl: false });
+        loadMap();
     }
 
-    async function loadData() {
+    async function loadMap() {
         const res = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
         const data = await res.json();
-        
+
         data.features.forEach(f => {
             let name = f.properties.name;
-            if (name === "Somaliland") return; // Skip broken separate entry
-            
-            let geometry = f.geometry;
-            if (name === "Somalia") geometry = somaliaPatch; // Use full patch
+            // FIX 1: Rename Swaziland to Eswatini
+            if (name === "Swaziland") name = "Eswatini";
+            if (name === "Somaliland") return; 
 
-            const layer = L.geoJSON(f, {
-                style: { fillColor: '#4CAF50', fillOpacity: 1, color: 'white', weight: 1 },
-                onEachFeature: (feature, l) => {
-                    l.on('click', (e) => handleInteraction(name, e));
-                    if (l._path) l._path.classList.add('region-path');
+            const geoLayer = L.geoJSON(f, {
+                style: { fillColor: '#27ae60', fillOpacity: 0.9, color: 'white', weight: 1 },
+                onEachFeature: (feature, layer) => {
+                    if (name === "Somalia") layer.setLatLngs(somaliaPatch);
+                    
+                    // FIX 3: Re-add Hover Highlight
+                    layer.on('mouseover', function() {
+                        this.setStyle({ fillOpacity: 0.5, weight: 3 });
+                    });
+                    layer.on('mouseout', function() {
+                        this.setStyle({ fillOpacity: 0.9, weight: 1 });
+                    });
+
+                    layer.on('click', (e) => handleResult(name, e));
                 }
             }).addTo(map);
-
-            regionLayers[name] = layer;
-            gameState.remaining.push({ name, geometry });
+            
+            layers[name] = geoLayer;
+            gameState.remaining.push(name);
         });
 
-        document.getElementById('total-regions').textContent = gameState.remaining.length;
-        gameState.total = gameState.remaining.length;
+        // FIX 2: Add Islands as dots
+        extraIslands.forEach(isl => {
+            const dot = L.circleMarker([isl.lat, isl.lng], {
+                radius: 6, fillColor: "#27ae60", color: "white", weight: 2, fillOpacity: 1
+            }).addTo(map);
+            dot.on('click', (e) => handleResult(isl.name, e));
+            layers[isl.name] = dot;
+            gameState.remaining.push(isl.name);
+        });
     }
 
-    function handleInteraction(name, e) {
-        if (!gameState.started || gameState.processing) return;
+    function handleResult(name, e) {
+        if (!gameState.started) {
+            gameState.started = true;
+            return next();
+        }
 
-        const point = map.mouseEventToContainerPoint(e.originalEvent);
-        const feedback = document.getElementById('on-screen-feedback');
-        
-        if (name === gameState.current.name) {
+        if (name === gameState.current) {
             gameState.score++;
             document.getElementById('score-value').textContent = gameState.score;
-            nextQuestion();
+            next();
         } else {
-            feedback.textContent = name;
-            feedback.style.left = point.x + "px";
-            feedback.style.top = point.y + "px";
-            feedback.classList.add('show');
-            setTimeout(() => feedback.classList.remove('show'), 1000);
-            
-            gameState.attempts++;
-            if (gameState.attempts >= 3) {
-                // Pulse correct area if missed 3 times
-                const correct = regionLayers[gameState.current.name];
-                if (correct) correct.eachLayer(l => l._path.classList.add('pulse-red-continuous'));
-            }
+            const pt = map.mouseEventToContainerPoint(e.originalEvent);
+            const fb = document.getElementById('on-screen-feedback');
+            fb.textContent = "That is " + name;
+            fb.style.left = pt.x + "px"; fb.style.top = pt.y + "px";
+            fb.classList.add('show');
+            setTimeout(() => fb.classList.remove('show'), 1200);
         }
     }
 
-    function nextQuestion() {
-        if (gameState.remaining.length === 0) return endGame();
-        
-        // Cleanup pulses
-        Object.values(regionLayers).forEach(layer => {
-            layer.eachLayer(l => l._path?.classList.remove('pulse-red-continuous'));
-        });
-
+    function next() {
+        if (gameState.remaining.length === 0) {
+            document.getElementById('country-name').textContent = "DONE!";
+            return;
+        }
         const idx = Math.floor(Math.random() * gameState.remaining.length);
         gameState.current = gameState.remaining.splice(idx, 1)[0];
-        gameState.attempts = 0;
-        
-        document.getElementById('country-name').textContent = gameState.current.name;
+        document.getElementById('country-name').textContent = gameState.current;
     }
-
-    function startGame() {
-        gameState.started = true;
-        nextQuestion();
-    }
-
-    function endGame() {
-        document.getElementById('completion-screen').style.display = 'block';
-        document.getElementById('accuracy').textContent = Math.round((gameState.score / gameState.total) * 100) + "%";
-    }
-
-    document.getElementById('question-container').onclick = () => { if(!gameState.started) startGame(); };
-    document.getElementById('restart-button').onclick = () => location.reload();
 
     window.onload = init;
 </script>
