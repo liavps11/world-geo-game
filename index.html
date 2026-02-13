@@ -1,135 +1,915 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Geography Quiz - Fixed</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Arial', sans-serif; overflow: hidden; background-color: #87CEEB; }
-        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background: #87CEEB; }
-        #ui-container {
-            position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
-            background: rgba(44, 62, 80, 0.95); padding: 8px 20px;
-            display: flex; align-items: center; justify-content: center; height: 70px;
-            color: white; border-bottom: 2px solid rgba(255,255,255,0.1);
-        }
-        #score-corner { position: absolute; left: 15px; background: rgba(0,0,0,0.3); padding: 8px 15px; border-radius: 20px; font-weight: bold; }
-        #country-name { font-size: 24px; font-weight: bold; margin-left: 10px; background: #2ecc71; padding: 4px 12px; border-radius: 5px; }
-        #on-screen-feedback {
-            position: absolute; z-index: 1500; font-weight: bold; color: white;
-            background: rgba(0, 0, 0, 0.8); padding: 5px 10px; border-radius: 4px;
-            pointer-events: none; opacity: 0; transition: opacity 0.2s;
-        }
-        #on-screen-feedback.show { opacity: 1; }
-        .region-path { cursor: pointer; transition: all 0.2s; }
-        /* FLASH & PULSE */
-        @keyframes pulse-red { 50% { fill: #e74c3c !important; fill-opacity: 0.7; } }
-        .pulse-red { animation: pulse-red 1s infinite; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Geography Quiz - Seterra Style</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background-color: #87CEEB;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(to bottom, rgba(52, 73, 94, 0.95), rgba(44, 62, 80, 0.95));
+            padding: 8px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 70px;
+        }
+
+        #score-corner {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 13px;
+            color: white;
+            font-weight: bold;
+        }
+
+        #question-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        #click-on-text {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: normal;
+        }
+
+        #country-name {
+            font-size: 22px;
+            color: white;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+        }
+
+        #country-flag {
+            height: 60px;
+            width: auto;
+            max-width: 100px;
+            border: 2px solid white;
+            border-radius: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            object-fit: contain;
+        }
+
+        #on-screen-feedback {
+            position: absolute;
+            z-index: 1500;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 6px 12px;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        #on-screen-feedback.show {
+            opacity: 1 !important;
+        }
+
+        #completion-screen {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        #completion-screen h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        #completion-screen p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .leaflet-container {
+            background-color: #87CEEB !important;
+        }
+
+        /* Country hover transparency effect */
+        .region-path {
+            cursor: pointer;
+            transition: fill-opacity 0.1s ease, stroke-width 0.1s ease !important;
+        }
+
+        .region-path:hover {
+            fill-opacity: 0.5 !important;
+            stroke: white !important;
+            stroke-width: 2px !important;
+        }
+
+        .small-country-dot {
+            cursor: pointer;
+            transition: fill-opacity 0.1s ease !important;
+        }
+
+        .small-country-dot:hover {
+            fill-opacity: 0.5 !important;
+        }
+
+        @keyframes flash-white {
+            0%, 100% { }
+            50% { fill: white !important; fill-opacity: 1 !important; }
+        }
+
+        @keyframes flash-yellow {
+            0%, 100% { }
+            50% { fill: #FFEB3B !important; fill-opacity: 1 !important; }
+        }
+
+        @keyframes flash-orange {
+            0%, 100% { }
+            50% { fill: #FF9800 !important; fill-opacity: 1 !important; }
+        }
+
+        @keyframes flash-red {
+            0%, 100% { }
+            50% { fill: #f44336 !important; fill-opacity: 1 !important; }
+        }
+
+        @keyframes pulse-red {
+            0%, 100% { fill-opacity: 1; }
+            50% { fill: #f44336 !important; fill-opacity: 0.6 !important; }
+        }
+
+        .flash-white {
+            animation: flash-white 0.5s !important;
+        }
+
+        .flash-yellow {
+            animation: flash-yellow 0.5s !important;
+        }
+
+        .flash-orange {
+            animation: flash-orange 0.5s !important;
+        }
+
+        .flash-red {
+            animation: flash-red 0.5s !important;
+        }
+
+        .pulse-red-continuous {
+            animation: pulse-red 1s infinite !important;
+        }
+    </style>
 </head>
 <body>
+    <div id="map"></div>
+    
+    <div id="ui-container">
+        <div id="score-corner">
+            <span id="score-value">0</span> / <span id="total-regions">0</span>
+        </div>
+        
+        <div id="question-container">
+            <span id="click-on-text">Click on</span>
+            <span id="country-name">START GAME</span>
+            <img id="country-flag" src="" alt="" style="display: none;">
+        </div>
+    </div>
 
-<div id="map"></div>
-<div id="ui-container">
-    <div id="score-corner">Score: <span id="score-value">0</span></div>
-    <div>Find: <span id="country-name">CLICK TO START</span></div>
-</div>
-<div id="on-screen-feedback"></div>
+    <div id="on-screen-feedback"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    const somaliaPatch = [[[41.5, -1.6], [41.0, 2.8], [42.8, 4.3], [45.0, 5.0], [49.0, 9.5], [43.3, 11.5], [48.9, 11.9], [51.2, 11.9], [51.1, 9.5], [49.2, 6.5], [45.3, 2.0], [41.5, -1.6]]];
-    
-    // Manual dots for small islands you mentioned
-    const extraIslands = [
-        { name: "Mauritius", lat: -20.348, lng: 57.552 },
-        { name: "Seychelles", lat: -4.679, lng: 55.492 },
-        { name: "Comoros", lat: -11.645, lng: 43.333 }
-    ];
+    <div id="completion-screen">
+        <h2>Quiz Complete! 🎉</h2>
+        <p>Final Score: <span id="final-score"></span></p>
+        <p>Accuracy: <span id="accuracy"></span></p>
+        <button id="restart-button" style="background-color: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 20px;">Play Again</button>
+    </div>
 
-    let map, gameState = { started: false, current: null, score: 0, remaining: [] };
-    let layers = {};
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Game state
+        let gameState = {
+            started: false,
+            currentQuestion: null,
+            score: 0,
+            totalQuestions: 0,
+            attempts: 0,
+            regions: [],
+            remainingRegions: [],
+            correctAnswers: 0,
+            totalAttempts: 0,
+            processing: false,
+            pulsingLayer: null
+        };
 
-    function init() {
-        map = L.map('map', { center: [10, 20], zoom: 3, minZoom: 2, attributionControl: false });
-        loadMap();
-    }
+        let map;
+        let regionLayers = {};
+        let smallCountryMarkers = {};
 
-    async function loadMap() {
-        const res = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
-        const data = await res.json();
+        // VERY small countries that need dots (not visible as outlines)
+        const smallCountries = [
+            { name: 'Vatican City', lat: 41.9029, lng: 12.4534 },
+            { name: 'San Marino', lat: 43.9424, lng: 12.4578 },
+            { name: 'Monaco', lat: 43.7384, lng: 7.4246 },
+            { name: 'Liechtenstein', lat: 47.1660, lng: 9.5554 },
+            { name: 'Andorra', lat: 42.5063, lng: 1.5218 },
+            { name: 'Singapore', lat: 1.3521, lng: 103.8198 },
+            { name: 'Bahrain', lat: 26.0667, lng: 50.5577 },
+            { name: 'Maldives', lat: 3.2028, lng: 73.2207 },
+            { name: 'Barbados', lat: 13.1939, lng: -59.5432 },
+            { name: 'Antigua and Barbuda', lat: 17.0608, lng: -61.7964 },
+            { name: 'Saint Lucia', lat: 13.9094, lng: -60.9789 },
+            { name: 'Grenada', lat: 12.1165, lng: -61.6790 },
+            { name: 'Saint Vincent and the Grenadines', lat: 12.9843, lng: -61.2872 },
+            { name: 'Dominica', lat: 15.4150, lng: -61.3710 },
+            { name: 'Saint Kitts and Nevis', lat: 17.3578, lng: -62.7830 },
+            { name: 'Somaliland', lat: 9.5, lng: 44.0 }
+        ];
 
-        data.features.forEach(f => {
-            let name = f.properties.name;
-            // FIX 1: Rename Swaziland to Eswatini
-            if (name === "Swaziland") name = "Eswatini";
-            if (name === "Somaliland") return; 
+        // Territories
+        const territories = [
+            { name: 'Puerto Rico', lat: 18.2208, lng: -66.5901 },
+            { name: 'Greenland', lat: 71.7069, lng: -42.6043 },
+            { name: 'French Guiana', lat: 3.9339, lng: -53.1258 },
+            { name: 'New Caledonia', lat: -20.9043, lng: 165.6180 },
+            { name: 'French Polynesia', lat: -17.6797, lng: -149.4068 },
+            { name: 'Guam', lat: 13.4443, lng: 144.7937 },
+            { name: 'Northern Mariana Islands', lat: 15.0979, lng: 145.6739 },
+            { name: 'American Samoa', lat: -14.2710, lng: -170.1322 },
+            { name: 'U.S. Virgin Islands', lat: 18.3358, lng: -64.8963 },
+            { name: 'British Virgin Islands', lat: 18.4207, lng: -64.6400 },
+            { name: 'Cayman Islands', lat: 19.3133, lng: -81.2546 },
+            { name: 'Bermuda', lat: 32.3078, lng: -64.7505 },
+            { name: 'Turks and Caicos Islands', lat: 21.6940, lng: -71.7979 },
+            { name: 'Aruba', lat: 12.5211, lng: -69.9683 },
+            { name: 'Curaçao', lat: 12.1696, lng: -68.9900 },
+            { name: 'Falkland Islands', lat: -51.7963, lng: -59.5236 },
+            { name: 'Gibraltar', lat: 36.1408, lng: -5.3536 },
+            { name: 'Faroe Islands', lat: 61.8926, lng: -6.9118 },
+            { name: 'Åland Islands', lat: 60.1785, lng: 19.9156 },
+            { name: 'Svalbard', lat: 77.8750, lng: 20.9752 },
+            { name: 'Isle of Man', lat: 54.2361, lng: -4.5481 },
+            { name: 'Guernsey', lat: 49.4657, lng: -2.5853 },
+            { name: 'Jersey', lat: 49.2144, lng: -2.1312 },
+            { name: 'Western Sahara', lat: 24.2155, lng: -12.8858 },
+            { name: 'Palestine', lat: 31.9522, lng: 35.2332 },
+            { name: 'Hong Kong', lat: 22.3193, lng: 114.1694 },
+            { name: 'Macau', lat: 22.1987, lng: 113.5439 }
+        ];
 
-            const geoLayer = L.geoJSON(f, {
-                style: { fillColor: '#27ae60', fillOpacity: 0.9, color: 'white', weight: 1 },
-                onEachFeature: (feature, layer) => {
-                    if (name === "Somalia") layer.setLatLngs(somaliaPatch);
-                    
-                    // FIX 3: Re-add Hover Highlight
-                    layer.on('mouseover', function() {
-                        this.setStyle({ fillOpacity: 0.5, weight: 3 });
-                    });
-                    layer.on('mouseout', function() {
-                        this.setStyle({ fillOpacity: 0.9, weight: 1 });
-                    });
+        // US State flags
+        const stateFlags = {
+            'Alabama': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Flag_of_Alabama.svg/120px-Flag_of_Alabama.svg.png',
+            'Alaska': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Flag_of_Alaska.svg/120px-Flag_of_Alaska.svg.png',
+            'Arizona': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Flag_of_Arizona.svg/120px-Flag_of_Arizona.svg.png',
+            'Arkansas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Flag_of_Arkansas.svg/120px-Flag_of_Arkansas.svg.png',
+            'California': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Flag_of_California.svg/120px-Flag_of_California.svg.png',
+            'Colorado': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Flag_of_Colorado.svg/120px-Flag_of_Colorado.svg.png',
+            'Connecticut': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Flag_of_Connecticut.svg/120px-Flag_of_Connecticut.svg.png',
+            'Delaware': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Flag_of_Delaware.svg/120px-Flag_of_Delaware.svg.png',
+            'Florida': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Flag_of_Florida.svg/120px-Flag_of_Florida.svg.png',
+            'Georgia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Flag_of_Georgia_%28U.S._state%29.svg/120px-Flag_of_Georgia_%28U.S._state%29.svg.png',
+            'Hawaii': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Flag_of_Hawaii.svg/120px-Flag_of_Hawaii.svg.png',
+            'Idaho': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_Idaho.svg/120px-Flag_of_Idaho.svg.png',
+            'Illinois': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Flag_of_Illinois.svg/120px-Flag_of_Illinois.svg.png',
+            'Indiana': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Flag_of_Indiana.svg/120px-Flag_of_Indiana.svg.png',
+            'Iowa': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Flag_of_Iowa.svg/120px-Flag_of_Iowa.svg.png',
+            'Kansas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Flag_of_Kansas.svg/120px-Flag_of_Kansas.svg.png',
+            'Kentucky': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Flag_of_Kentucky.svg/120px-Flag_of_Kentucky.svg.png',
+            'Louisiana': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Flag_of_Louisiana.svg/120px-Flag_of_Louisiana.svg.png',
+            'Maine': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Flag_of_Maine.svg/120px-Flag_of_Maine.svg.png',
+            'Maryland': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Flag_of_Maryland.svg/120px-Flag_of_Maryland.svg.png',
+            'Massachusetts': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Flag_of_Massachusetts.svg/120px-Flag_of_Massachusetts.svg.png',
+            'Michigan': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Flag_of_Michigan.svg/120px-Flag_of_Michigan.svg.png',
+            'Minnesota': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Flag_of_Minnesota.svg/120px-Flag_of_Minnesota.svg.png',
+            'Mississippi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Flag_of_Mississippi.svg/120px-Flag_of_Mississippi.svg.png',
+            'Missouri': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Flag_of_Missouri.svg/120px-Flag_of_Missouri.svg.png',
+            'Montana': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Flag_of_Montana.svg/120px-Flag_of_Montana.svg.png',
+            'Nebraska': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Flag_of_Nebraska.svg/120px-Flag_of_Nebraska.svg.png',
+            'Nevada': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Flag_of_Nevada.svg/120px-Flag_of_Nevada.svg.png',
+            'New Hampshire': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Flag_of_New_Hampshire.svg/120px-Flag_of_New_Hampshire.svg.png',
+            'New Jersey': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Flag_of_New_Jersey.svg/120px-Flag_of_New_Jersey.svg.png',
+            'New Mexico': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Flag_of_New_Mexico.svg/120px-Flag_of_New_Mexico.svg.png',
+            'New York': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Flag_of_New_York.svg/120px-Flag_of_New_York.svg.png',
+            'North Carolina': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Flag_of_North_Carolina.svg/120px-Flag_of_North_Carolina.svg.png',
+            'North Dakota': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Flag_of_North_Dakota.svg/120px-Flag_of_North_Dakota.svg.png',
+            'Ohio': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Flag_of_Ohio.svg/120px-Flag_of_Ohio.svg.png',
+            'Oklahoma': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Flag_of_Oklahoma.svg/120px-Flag_of_Oklahoma.svg.png',
+            'Oregon': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Flag_of_Oregon.svg/120px-Flag_of_Oregon.svg.png',
+            'Pennsylvania': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Flag_of_Pennsylvania.svg/120px-Flag_of_Pennsylvania.svg.png',
+            'Rhode Island': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Flag_of_Rhode_Island.svg/120px-Flag_of_Rhode_Island.svg.png',
+            'South Carolina': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Flag_of_South_Carolina.svg/120px-Flag_of_South_Carolina.svg.png',
+            'South Dakota': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Flag_of_South_Dakota.svg/120px-Flag_of_South_Dakota.svg.png',
+            'Tennessee': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flag_of_Tennessee.svg/120px-Flag_of_Tennessee.svg.png',
+            'Texas': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Flag_of_Texas.svg/120px-Flag_of_Texas.svg.png',
+            'Utah': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Flag_of_Utah.svg/120px-Flag_of_Utah.svg.png',
+            'Vermont': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Flag_of_Vermont.svg/120px-Flag_of_Vermont.svg.png',
+            'Virginia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Flag_of_Virginia.svg/120px-Flag_of_Virginia.svg.png',
+            'Washington': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Flag_of_Washington.svg/120px-Flag_of_Washington.svg.png',
+            'West Virginia': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Flag_of_West_Virginia.svg/120px-Flag_of_West_Virginia.svg.png',
+            'Wisconsin': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Flag_of_Wisconsin.svg/120px-Flag_of_Wisconsin.svg.png',
+            'Wyoming': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Flag_of_Wyoming.svg/120px-Flag_of_Wyoming.svg.png'
+        };
 
-                    layer.on('click', (e) => handleResult(name, e));
-                }
-            }).addTo(map);
-            
-            layers[name] = geoLayer;
-            gameState.remaining.push(name);
-        });
+        // Country flag API
+        function getCountryFlag(countryName) {
+            // Check if it's a US state first
+            if (stateFlags[countryName]) {
+                return stateFlags[countryName];
+            }
 
-        // FIX 2: Add Islands as dots
-        extraIslands.forEach(isl => {
-            const dot = L.circleMarker([isl.lat, isl.lng], {
-                radius: 6, fillColor: "#27ae60", color: "white", weight: 2, fillOpacity: 1
-            }).addTo(map);
-            dot.on('click', (e) => handleResult(isl.name, e));
-            layers[isl.name] = dot;
-            gameState.remaining.push(isl.name);
-        });
-    }
+            const countryToCode = {
+                'United States': 'us', 'China': 'cn', 'India': 'in', 'Brazil': 'br', 'Russia': 'ru',
+                'Japan': 'jp', 'Germany': 'de', 'United Kingdom': 'gb', 'France': 'fr', 'Italy': 'it',
+                'Canada': 'ca', 'South Korea': 'kr', 'Spain': 'es', 'Mexico': 'mx', 'Indonesia': 'id',
+                'Netherlands': 'nl', 'Saudi Arabia': 'sa', 'Turkey': 'tr', 'Switzerland': 'ch', 'Poland': 'pl',
+                'Belgium': 'be', 'Sweden': 'se', 'Argentina': 'ar', 'Norway': 'no', 'Austria': 'at',
+                'Ireland': 'ie', 'Israel': 'il', 'Nigeria': 'ng', 'Denmark': 'dk', 'Singapore': 'sg',
+                'Malaysia': 'my', 'South Africa': 'za', 'Philippines': 'ph', 'Colombia': 'co', 'Pakistan': 'pk',
+                'Chile': 'cl', 'Finland': 'fi', 'Bangladesh': 'bd', 'Egypt': 'eg', 'Vietnam': 'vn',
+                'Czech Republic': 'cz', 'Romania': 'ro', 'Portugal': 'pt', 'Peru': 'pe', 'Greece': 'gr',
+                'New Zealand': 'nz', 'Ukraine': 'ua', 'Hungary': 'hu', 'Kuwait': 'kw', 'Morocco': 'ma',
+                'Slovakia': 'sk', 'Ethiopia': 'et', 'Kenya': 'ke', 'Ecuador': 'ec', 'Puerto Rico': 'pr',
+                'Algeria': 'dz', 'Qatar': 'qa', 'Kazakhstan': 'kz', 'Dominican Republic': 'do',
+                'Guatemala': 'gt', 'Oman': 'om', 'Luxembourg': 'lu', 'Panama': 'pa', 'Bulgaria': 'bg',
+                'Croatia': 'hr', 'Ghana': 'gh', 'Uruguay': 'uy', 'Costa Rica': 'cr', 'Sri Lanka': 'lk',
+                'Lithuania': 'lt', 'Slovenia': 'si', 'Serbia': 'rs', 'Uzbekistan': 'uz', 'Myanmar': 'mm',
+                'Azerbaijan': 'az', 'Belarus': 'by', 'Tunisia': 'tn', 'Jordan': 'jo', 'Paraguay': 'py',
+                'Libya': 'ly', 'Bolivia': 'bo', 'Uganda': 'ug', 'Lebanon': 'lb', 'Cameroon': 'cm',
+                'Latvia': 'lv', 'Estonia': 'ee', 'Bahrain': 'bh', 'Nepal': 'np', 'Zambia': 'zm',
+                'Honduras': 'hn', 'Iceland': 'is', 'Senegal': 'sn', 'Cambodia': 'kh', 'Cyprus': 'cy',
+                'Zimbabwe': 'zw', 'Trinidad and Tobago': 'tt', 'El Salvador': 'sv', 'Bosnia and Herzegovina': 'ba',
+                'Afghanistan': 'af', 'Georgia': 'ge', 'Papua New Guinea': 'pg', 'Mali': 'ml',
+                'Albania': 'al', 'Malta': 'mt', 'Mozambique': 'mz', 'Botswana': 'bw', 'Gabon': 'ga',
+                'Jamaica': 'jm', 'Armenia': 'am', 'Mongolia': 'mn', 'Namibia': 'na', 'Brunei': 'bn',
+                'North Macedonia': 'mk', 'Madagascar': 'mg', 'Mauritius': 'mu', 'Nicaragua': 'ni',
+                'Moldova': 'md', 'Kosovo': 'xk', 'Chad': 'td', 'Rwanda': 'rw', 'Congo': 'cg',
+                'Laos': 'la', 'Kyrgyzstan': 'kg', 'Malawi': 'mw', 'Niger': 'ne', 'Haiti': 'ht',
+                'Tajikistan': 'tj', 'Benin': 'bj', 'Burkina Faso': 'bf', 'Mauritania': 'mr',
+                'Montenegro': 'me', 'Togo': 'tg', 'Fiji': 'fj', 'Barbados': 'bb', 'Eswatini': 'sz',
+                'Guyana': 'gy', 'Maldives': 'mv', 'Sierra Leone': 'sl', 'Suriname': 'sr',
+                'Somalia': 'so', 'Djibouti': 'dj', 'Burundi': 'bi', 'Belize': 'bz', 'Liberia': 'lr',
+                'Guinea': 'gn', 'Lesotho': 'ls', 'Timor-Leste': 'tl', 'Bahamas': 'bs',
+                'Equatorial Guinea': 'gq', 'Bhutan': 'bt', 'Solomon Islands': 'sb', 'Comoros': 'km',
+                'Cape Verde': 'cv', 'Sao Tome and Principe': 'st', 'Samoa': 'ws', 'Vanuatu': 'vu',
+                'Seychelles': 'sc', 'Antigua and Barbuda': 'ag', 'Andorra': 'ad', 'Grenada': 'gd',
+                'Tonga': 'to', 'Saint Lucia': 'lc', 'Kiribati': 'ki', 'Micronesia': 'fm',
+                'Saint Vincent and the Grenadines': 'vc', 'Dominica': 'dm', 'San Marino': 'sm',
+                'Liechtenstein': 'li', 'Monaco': 'mc', 'Palau': 'pw', 'Nauru': 'nr', 'Tuvalu': 'tv',
+                'Vatican City': 'va', 'Marshall Islands': 'mh', 'Saint Kitts and Nevis': 'kn',
+                'Australia': 'au', 'Angola': 'ao', 'Thailand': 'th', 'Tanzania': 'tz', 'Iraq': 'iq',
+                'Venezuela': 've', 'Iran': 'ir', 'Yemen': 'ye', 'Sudan': 'sd', 'Syria': 'sy',
+                'Eritrea': 'er', 'Central African Republic': 'cf', 'Guinea-Bissau': 'gw',
+                'Taiwan': 'tw', 'North Korea': 'kp', 'Cuba': 'cu', 'Turkmenistan': 'tm',
+                'Democratic Republic of the Congo': 'cd', 'South Sudan': 'ss', 'Gambia': 'gm',
+                'Western Sahara': 'eh', 'Palestine': 'ps', 'Greenland': 'gl', 'Hong Kong': 'hk',
+                'Macau': 'mo', 'Somaliland': 'so', 'Mayotte': 'yt', 'Réunion': 're'
+            };
 
-    function handleResult(name, e) {
-        if (!gameState.started) {
-            gameState.started = true;
-            return next();
-        }
+            const code = countryToCode[countryName];
+            if (code) {
+                return `https://flagcdn.com/w160/${code}.png`;
+            }
+            return null;
+        }
 
-        if (name === gameState.current) {
-            gameState.score++;
-            document.getElementById('score-value').textContent = gameState.score;
-            next();
-        } else {
-            const pt = map.mouseEventToContainerPoint(e.originalEvent);
-            const fb = document.getElementById('on-screen-feedback');
-            fb.textContent = "That is " + name;
-            fb.style.left = pt.x + "px"; fb.style.top = pt.y + "px";
-            fb.classList.add('show');
-            setTimeout(() => fb.classList.remove('show'), 1200);
-        }
-    }
+        // Initialize map with boundaries
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: true,
+                attributionControl: false,
+                dragging: true,
+                scrollWheelZoom: true,
+                doubleClickZoom: true,
+                boxZoom: true,
+                keyboard: true,
+                minZoom: 2,
+                maxZoom: 8,
+                maxBounds: [[-90, -200], [90, 200]],
+                maxBoundsViscosity: 0.8,
+                preferCanvas: true,
+                renderer: L.canvas({ tolerance: 5 })
+            }).setView([20, 0], 2);
+        }
 
-    function next() {
-        if (gameState.remaining.length === 0) {
-            document.getElementById('country-name').textContent = "DONE!";
-            return;
-        }
-        const idx = Math.floor(Math.random() * gameState.remaining.length);
-        gameState.current = gameState.remaining.splice(idx, 1)[0];
-        document.getElementById('country-name').textContent = gameState.current;
-    }
+        // Load GeoJSON data
+        async function loadMapData() {
+            try {
+                const worldResponse = await fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json');
+                const worldData = await worldResponse.json();
+                
+                const usResponse = await fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json');
+                const usData = await usResponse.json();
 
-    window.onload = init;
-</script>
+                // Process world countries (exclude USA)
+                worldData.features.forEach(feature => {
+                    let countryName = feature.properties.name;
+                    
+                    // Fix country names to English standard
+                    if (countryName === 'Swaziland') countryName = 'Eswatini';
+                    
+                    // Skip USA and Somaliland (Somaliland will be added as a dot only)
+                    if (countryName && 
+                        countryName !== 'United States of America' && 
+                        countryName !== 'United States' &&
+                        countryName !== 'Somaliland') {
+                        gameState.regions.push({
+                            name: countryName,
+                            type: 'country',
+                            geometry: feature.geometry
+                        });
+                    }
+                });
+
+                // Process US states
+                usData.features.forEach(feature => {
+                    const stateName = feature.properties.name;
+                    if (stateName) {
+                        gameState.regions.push({
+                            name: stateName,
+                            type: 'state',
+                            geometry: feature.geometry
+                        });
+                    }
+                });
+
+                // Draw regions on map
+                drawRegions(worldData, usData);
+                
+                // Add small countries and territories
+                addSmallRegions();
+
+                // Update total count
+                document.getElementById('total-regions').textContent = gameState.regions.length;
+                
+                console.log(`Loaded ${gameState.regions.length} regions total`);
+                
+                // Fit bounds to show entire world
+                setTimeout(() => {
+                    map.fitBounds([[-60, -180], [75, 180]], { padding: [10, 10] });
+                }, 100);
+
+            } catch (error) {
+                console.error('Error loading map data:', error);
+            }
+        }
+
+        function drawRegions(worldData, usData) {
+            // Draw world countries with improved rendering
+            L.geoJSON(worldData, {
+                filter: function(feature) {
+                    // Completely exclude Somaliland from rendering
+                    return feature.properties.name !== 'Somaliland';
+                },
+                style: function(feature) {
+                    let countryName = feature.properties.name;
+                    if (countryName === 'Swaziland') countryName = 'Eswatini';
+                    
+                    if (countryName === 'United States of America' || countryName === 'United States') {
+                        return { 
+                            fillOpacity: 0,
+                            opacity: 0,
+                            interactive: false
+                        };
+                    }
+                    
+                    return {
+                        fillColor: '#4CAF50',
+                        fillOpacity: 1,
+                        color: 'white',
+                        weight: 1,
+                        interactive: true,
+                        smoothFactor: 0.5
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    let countryName = feature.properties.name;
+                    if (countryName === 'Swaziland') countryName = 'Eswatini';
+                    
+                    if (countryName === 'United States of America' || countryName === 'United States') {
+                        return;
+                    }
+                    
+                    if (countryName) {
+                        const isSmallCountry = smallCountries.find(c => c.name === countryName);
+                        if (isSmallCountry) return;
+
+                        regionLayers[countryName] = layer;
+                        
+                        layer.on('click', function(e) {
+                            L.DomEvent.stopPropagation(e);
+                            handleRegionClick(countryName, e);
+                        });
+                        
+                        layer.on('mouseover', function(e) {
+                            const target = e.target;
+                            target.setStyle({
+                                fillOpacity: 0.5,
+                                weight: 2
+                            });
+                        });
+                        
+                        layer.on('mouseout', function(e) {
+                            const target = e.target;
+                            if (!target._path || !target._path.classList.contains('pulse-red-continuous')) {
+                                target.setStyle({
+                                    fillOpacity: 1,
+                                    weight: 1
+                                });
+                            }
+                        });
+                        
+                        if (layer._path) {
+                            layer._path.classList.add('region-path');
+                        }
+                    }
+                }
+            }).addTo(map);
+
+            // Draw US states with improved rendering
+            L.geoJSON(usData, {
+                style: {
+                    fillColor: '#4CAF50',
+                    fillOpacity: 1,
+                    color: 'white',
+                    weight: 1,
+                    interactive: true,
+                    smoothFactor: 0.5
+                },
+                onEachFeature: function(feature, layer) {
+                    const stateName = feature.properties.name;
+                    regionLayers[stateName] = layer;
+                    
+                    layer.on('click', function(e) {
+                        L.DomEvent.stopPropagation(e);
+                        handleRegionClick(stateName, e);
+                    });
+                    
+                    // FIXED HOVER - Direct style manipulation
+                    layer.on('mouseover', function(e) {
+                        const target = e.target;
+                        target.setStyle({
+                            fillOpacity: 0.5,
+                            weight: 2
+                        });
+                    });
+                    
+                    layer.on('mouseout', function(e) {
+                        const target = e.target;
+                        if (!target._path || !target._path.classList.contains('pulse-red-continuous')) {
+                            target.setStyle({
+                                fillOpacity: 1,
+                                weight: 1
+                            });
+                        }
+                    });
+                    
+                    if (layer._path) {
+                        layer._path.classList.add('region-path');
+                    }
+                }
+            }).addTo(map);
+        }
+
+        function addSmallRegions() {
+            // Add very small countries as dots
+            smallCountries.forEach(country => {
+                const marker = L.circleMarker([country.lat, country.lng], {
+                    radius: 6,
+                    fillColor: '#4CAF50',
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+
+                smallCountryMarkers[country.name] = marker;
+
+                marker.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    handleRegionClick(country.name, e);
+                });
+
+                marker.on('mouseover', function() {
+                    marker.setStyle({ fillOpacity: 0.5 });
+                });
+                
+                marker.on('mouseout', function() {
+                    if (!marker._path || !marker._path.classList.contains('pulse-red-continuous')) {
+                        marker.setStyle({ fillOpacity: 1 });
+                    }
+                });
+
+                gameState.regions.push({
+                    name: country.name,
+                    type: 'country',
+                    isSmall: true
+                });
+            });
+
+            // Add territories as dots
+            territories.forEach(territory => {
+                const marker = L.circleMarker([territory.lat, territory.lng], {
+                    radius: 6,
+                    fillColor: '#4CAF50',
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+
+                smallCountryMarkers[territory.name] = marker;
+
+                marker.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    handleRegionClick(territory.name, e);
+                });
+
+                marker.on('mouseover', function() {
+                    marker.setStyle({ fillOpacity: 0.5 });
+                });
+                
+                marker.on('mouseout', function() {
+                    if (!marker._path || !marker._path.classList.contains('pulse-red-continuous')) {
+                        marker.setStyle({ fillOpacity: 1 });
+                    }
+                });
+
+                gameState.regions.push({
+                    name: territory.name,
+                    type: 'territory',
+                    isSmall: true
+                });
+            });
+        }
+
+        function startGame() {
+            gameState.started = true;
+            gameState.score = 0;
+            gameState.totalQuestions = 0;
+            gameState.correctAnswers = 0;
+            gameState.totalAttempts = 0;
+            gameState.processing = false;
+            gameState.remainingRegions = [...gameState.regions];
+            
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (gameState.remainingRegions.length === 0) {
+                endGame();
+                return;
+            }
+
+            // Stop any pulsing from previous question
+            if (gameState.pulsingLayer) {
+                if (gameState.pulsingLayer._path) {
+                    gameState.pulsingLayer._path.classList.remove('pulse-red-continuous');
+                    gameState.pulsingLayer._path.style.fillOpacity = '1';
+                }
+                gameState.pulsingLayer = null;
+            }
+
+            gameState.attempts = 0;
+            
+            const randomIndex = Math.floor(Math.random() * gameState.remainingRegions.length);
+            gameState.currentQuestion = gameState.remainingRegions[randomIndex];
+            
+            // Update UI
+            document.getElementById('country-name').textContent = gameState.currentQuestion.name;
+            
+            // Update flag
+            const flagUrl = getCountryFlag(gameState.currentQuestion.name);
+            const flagImg = document.getElementById('country-flag');
+            if (flagUrl) {
+                flagImg.src = flagUrl;
+                flagImg.style.display = 'block';
+            } else {
+                flagImg.style.display = 'none';
+            }
+        }
+
+        function showOnScreenFeedback(message, x, y) {
+            const feedback = document.getElementById('on-screen-feedback');
+            if (!feedback) {
+                console.error('Feedback element not found!');
+                return;
+            }
+            
+            feedback.textContent = message;
+            feedback.style.left = x + 'px';
+            feedback.style.top = y + 'px';
+            feedback.style.display = 'block';
+            
+            // Force remove then add class
+            feedback.classList.remove('show');
+            setTimeout(() => {
+                feedback.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                feedback.classList.remove('show');
+            }, 2000);
+        }
+
+        function handleRegionClick(regionName, event) {
+            if (!gameState.started || !gameState.currentQuestion || gameState.processing) return;
+
+            // Get click coordinates - improved to work with all event types
+            let clickX, clickY;
+            if (event.originalEvent) {
+                clickX = event.originalEvent.clientX;
+                clickY = event.originalEvent.clientY;
+            } else if (event.containerPoint) {
+                clickX = event.containerPoint.x;
+                clickY = event.containerPoint.y;
+            } else if (event.latlng) {
+                const point = map.latLngToContainerPoint(event.latlng);
+                clickX = point.x;
+                clickY = point.y;
+            } else {
+                clickX = window.innerWidth / 2;
+                clickY = window.innerHeight / 2;
+            }
+
+            gameState.totalAttempts++;
+            gameState.attempts++;
+
+            const layer = regionLayers[regionName];
+            const marker = smallCountryMarkers[regionName];
+            
+            function flashRegion(color) {
+                if (layer && layer._path) {
+                    const className = `flash-${color}`;
+                    layer._path.classList.add(className);
+                    setTimeout(() => {
+                        layer._path.classList.remove(className);
+                    }, 500);
+                }
+                
+                if (marker) {
+                    const flashColors = {
+                        'white': '#FFFFFF',
+                        'yellow': '#FFEB3B',
+                        'orange': '#FF9800',
+                        'red': '#f44336'
+                    };
+                    
+                    const originalColor = marker.options.fillColor;
+                    marker.setStyle({ 
+                        fillColor: flashColors[color],
+                        radius: 10
+                    });
+                    
+                    setTimeout(() => {
+                        marker.setStyle({ 
+                            fillColor: originalColor,
+                            radius: 6
+                        });
+                    }, 500);
+                }
+            }
+
+            if (regionName === gameState.currentQuestion.name) {
+                // Correct answer!
+                gameState.processing = true;
+                gameState.correctAnswers++;
+                
+                // Stop pulsing if it was happening
+                if (gameState.pulsingLayer && gameState.pulsingLayer._path) {
+                    gameState.pulsingLayer._path.classList.remove('pulse-red-continuous');
+                    gameState.pulsingLayer._path.style.fillOpacity = '1';
+                }
+                
+                if (gameState.attempts === 1) {
+                    flashRegion('white');
+                    gameState.score += 3;
+                } else if (gameState.attempts === 2) {
+                    flashRegion('yellow');
+                    gameState.score += 2;
+                } else if (gameState.attempts === 3) {
+                    flashRegion('orange');
+                    gameState.score += 1;
+                } else {
+                    flashRegion('red');
+                }
+
+                gameState.remainingRegions = gameState.remainingRegions.filter(r => r.name !== regionName);
+                gameState.totalQuestions++;
+
+                document.getElementById('score-value').textContent = gameState.score;
+
+                setTimeout(() => {
+                    gameState.processing = false;
+                    nextQuestion();
+                }, 800);
+
+            } else {
+                // Wrong answer - ALWAYS show country name at click position
+                console.log('Showing feedback:', regionName, 'at', clickX, clickY);
+                showOnScreenFeedback(regionName, clickX, clickY);
+                
+                if (gameState.attempts === 1) {
+                    flashRegion('yellow');
+                } else if (gameState.attempts === 2) {
+                    flashRegion('orange');
+                } else if (gameState.attempts >= 3) {
+                    flashRegion('red');
+                    
+                    // Start continuous red pulsing on correct region
+                    const correctLayer = regionLayers[gameState.currentQuestion.name];
+                    const correctMarker = smallCountryMarkers[gameState.currentQuestion.name];
+                    
+                    if (correctLayer && correctLayer._path) {
+                        correctLayer._path.classList.add('pulse-red-continuous');
+                        gameState.pulsingLayer = correctLayer;
+                    }
+                    
+                    if (correctMarker && correctMarker._path) {
+                        correctMarker._path.classList.add('pulse-red-continuous');
+                        gameState.pulsingLayer = correctMarker;
+                    }
+                }
+            }
+        }
+
+        function endGame() {
+            gameState.started = false;
+            
+            // Stop any pulsing
+            if (gameState.pulsingLayer && gameState.pulsingLayer._path) {
+                gameState.pulsingLayer._path.classList.remove('pulse-red-continuous');
+                gameState.pulsingLayer._path.style.fillOpacity = '1';
+            }
+            
+            const accuracy = gameState.totalAttempts > 0 ? Math.round((gameState.correctAnswers / gameState.totalAttempts) * 100) : 0;
+            
+            document.getElementById('final-score').textContent = `${gameState.score} / ${gameState.totalQuestions * 3}`;
+            document.getElementById('accuracy').textContent = `${accuracy}%`;
+            document.getElementById('completion-screen').style.display = 'block';
+        }
+
+        // Event listeners
+        document.getElementById('question-container').addEventListener('click', function() {
+            if (!gameState.started) {
+                startGame();
+            }
+        });
+        
+        document.getElementById('restart-button').addEventListener('click', () => {
+            document.getElementById('completion-screen').style.display = 'none';
+            document.getElementById('country-name').textContent = 'START GAME';
+            document.getElementById('country-flag').style.display = 'none';
+            document.getElementById('score-value').textContent = '0';
+        });
+
+        // Load map on page load
+        window.addEventListener('load', function() {
+            initMap();
+            loadMapData();
+        });
+    </script>
 </body>
 </html>
