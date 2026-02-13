@@ -2,13 +2,37 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>World Geography Game</title>
+<title>World + US States Game</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <style>
-  body { margin: 0; font-family: Arial; text-align: center; }
-  #map { height: 90vh; }
-  #question { font-size: 24px; padding: 10px; }
+body {
+  margin: 0;
+  font-family: Arial;
+  text-align: center;
+  background: #f4f4f4;
+}
+
+#question {
+  font-size: 24px;
+  padding: 15px;
+}
+
+#map {
+  height: 90vh;
+}
+
+.leaflet-interactive {
+  fill: #d9d9d9;
+  stroke: white;
+  stroke-width: 1;
+}
+
+.leaflet-interactive:hover {
+  fill: #4da6ff;
+}
 </style>
 </head>
 <body>
@@ -17,47 +41,63 @@
 <div id="map"></div>
 
 <script>
-let map = L.map('map').setView([20, 0], 2);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 5
-}).addTo(map);
+let map = L.map('map', {
+  zoomControl: false,
+  attributionControl: false
+}).setView([20, 0], 2);
 
-let locations = [];
-let current = null;
 let score = 0;
-
-// Example simple country list for testing
-locations = ["France", "Brazil", "Japan", "Canada"];
+let current = null;
+let allLocations = [];
 
 function nextQuestion() {
-  current = locations[Math.floor(Math.random() * locations.length)];
+  current = allLocations[Math.floor(Math.random() * allLocations.length)];
   document.getElementById("question").innerText =
-    "Find: " + current + " | Score: " + score;
+    "Click: " + current + " | Score: " + score;
 }
 
 function onEachFeature(feature, layer) {
-  layer.on({
-    click: function() {
-      if (feature.properties.name === current) {
-        score++;
+  let name = feature.properties.ADMIN || feature.properties.name;
+
+  allLocations.push(name);
+
+  layer.on("click", function () {
+    if (name === current) {
+      score++;
+      layer.setStyle({ fillColor: "green" });
+      setTimeout(() => {
+        layer.setStyle({ fillColor: "#d9d9d9" });
         nextQuestion();
-      }
+      }, 400);
+    } else {
+      layer.setStyle({ fillColor: "red" });
+      setTimeout(() => {
+        layer.setStyle({ fillColor: "#d9d9d9" });
+      }, 400);
     }
   });
 }
 
-// You will replace this with real GeoJSON
+/* WORLD COUNTRIES (Seterra-style list approximation) */
 fetch("https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson")
-  .then(res => res.json())
-  .then(data => {
-    L.geoJSON(data, {
-      onEachFeature: onEachFeature
-    }).addTo(map);
+.then(res => res.json())
+.then(data => {
+  L.geoJSON(data, {
+    onEachFeature: onEachFeature
+  }).addTo(map);
 
-    locations = data.features.map(f => f.properties.name);
-    nextQuestion();
-  });
+  nextQuestion();
+});
+
+/* US STATES */
+fetch("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json")
+.then(res => res.json())
+.then(data => {
+  L.geoJSON(data, {
+    onEachFeature: onEachFeature
+  }).addTo(map);
+});
 
 </script>
 
