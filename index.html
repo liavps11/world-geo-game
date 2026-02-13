@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Geography Quiz - Seterra Style</title>
+    <title>World Geography Quiz - Corrected Borders</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -25,72 +25,49 @@
             font-size: 22px; color: white; font-weight: bold; background: rgba(255, 255, 255, 0.15);
             padding: 6px 16px; border-radius: 6px; border: 2px solid rgba(255, 255, 255, 0.25);
         }
-        #country-flag { height: 60px; border: 2px solid white; border-radius: 3px; }
         #on-screen-feedback {
             position: absolute; z-index: 1500; font-size: 14px; font-weight: bold; color: white;
             background: rgba(0, 0, 0, 0.85); padding: 6px 12px; border-radius: 6px;
             pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
         }
         #on-screen-feedback.show { opacity: 1 !important; }
-        #completion-screen {
-            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 2000; background: white; padding: 40px; border-radius: 15px; text-align: center;
-        }
         .region-path { cursor: pointer; transition: all 0.1s ease; }
-        @keyframes pulse-red { 0%, 100% { fill-opacity: 1; } 50% { fill: #f44336 !important; fill-opacity: 0.6 !important; } }
-        .pulse-red-continuous { animation: pulse-red 1s infinite !important; }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <div id="ui-container">
-        <div id="score-corner"><span id="score-value">0</span> / <span id="total-regions">0</span></div>
+        <div id="score-corner">Score: <span id="score-value">0</span></div>
         <div id="question-container">
             <span style="color:white">Click on</span>
             <span id="country-name">START GAME</span>
-            <img id="country-flag" style="display: none;">
         </div>
     </div>
     <div id="on-screen-feedback"></div>
-    <div id="completion-screen">
-        <h2>Quiz Complete! 🎉</h2>
-        <p>Final Score: <span id="final-score"></span></p>
-        <p>Accuracy: <span id="accuracy"></span></p>
-        <button id="restart-button" style="background-color: #4CAF50; color: white; border: none; padding: 15px 30px; cursor: pointer; margin-top: 20px;">Play Again</button>
-    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let gameState = { started: false, currentQuestion: null, score: 0, totalQuestions: 0, attempts: 0, regions: [], remainingRegions: [], correctAnswers: 0, totalAttempts: 0, processing: false, pulsingLayer: null };
-        let map; let regionLayers = {}; let smallCountryMarkers = {};
+        let gameState = { started: false, currentQuestion: null, score: 0, regions: [], remainingRegions: [] };
+        let map; let regionLayers = {};
 
-        const smallCountries = [
-            { name: 'Vatican City', lat: 41.9029, lng: 12.4534 }, { name: 'San Marino', lat: 43.9424, lng: 12.4578 },
-            { name: 'Monaco', lat: 43.7384, lng: 7.4246 }, { name: 'Liechtenstein', lat: 47.1660, lng: 9.5554 },
-            { name: 'Andorra', lat: 42.5063, lng: 1.5218 }, { name: 'Singapore', lat: 1.3521, lng: 103.8198 },
-            { name: 'Bahrain', lat: 26.0667, lng: 50.5577 }, { name: 'Maldives', lat: 3.2028, lng: 73.2207 },
-            { name: 'Seychelles', lat: -4.6796, lng: 55.4920 }, { name: 'Mauritius', lat: -20.3484, lng: 57.5522 },
-            { name: 'Comoros', lat: -11.6455, lng: 43.3333 }, { name: 'Barbados', lat: 13.1939, lng: -59.5432 },
-            { name: 'Antigua and Barbuda', lat: 17.0608, lng: -61.7964 }, { name: 'Saint Lucia', lat: 13.9094, lng: -60.9789 },
-            { name: 'Grenada', lat: 12.1165, lng: -61.6790 }, { name: 'Saint Vincent and the Grenadines', lat: 12.9843, lng: -61.2872 },
-            { name: 'Dominica', lat: 15.4150, lng: -61.3710 }, { name: 'Saint Kitts and Nevis', lat: 17.3578, lng: -62.7830 },
-            { name: 'Somaliland', lat: 9.5, lng: 44.0 }
+        // Manual coordinates to define Western Sahara separately
+        const westernSaharaGeo = {
+            "type": "Polygon",
+            "coordinates": [[[-13.1, 27.6], [-8.6, 27.6], [-8.6, 21.3], [-17.1, 21.3], [-17.1, 22.2], [-13.1, 27.6]]]
+        };
+
+        const extraIslands = [
+            { name: 'Seychelles', lat: -4.67, lng: 55.49 },
+            { name: 'Mauritius', lat: -20.34, lng: 57.55 },
+            { name: 'Comoros', lat: -11.64, lng: 43.33 }
         ];
-
-        function getCountryFlag(name) {
-            const countryToCode = { 'United States': 'us', 'China': 'cn', 'India': 'in', 'Brazil': 'br', 'Russia': 'ru', 'Japan': 'jp', 'Germany': 'de', 'United Kingdom': 'gb', 'France': 'fr', 'Italy': 'it', 'Canada': 'ca', 'South Korea': 'kr', 'Spain': 'es', 'Mexico': 'mx', 'Indonesia': 'id', 'Netherlands': 'nl', 'Saudi Arabia': 'sa', 'Turkey': 'tr', 'Switzerland': 'ch', 'Poland': 'pl', 'Belgium': 'be', 'Sweden': 'se', 'Argentina': 'ar', 'Norway': 'no', 'Austria': 'at', 'Ireland': 'ie', 'Israel': 'il', 'Nigeria': 'ng', 'Denmark': 'dk', 'Singapore': 'sg', 'Malaysia': 'my', 'South Africa': 'za', 'Philippines': 'ph', 'Colombia': 'co', 'Pakistan': 'pk', 'Chile': 'cl', 'Finland': 'fi', 'Bangladesh': 'bd', 'Egypt': 'eg', 'Vietnam': 'vn', 'Czech Republic': 'cz', 'Romania': 'ro', 'Portugal': 'pt', 'Peru': 'pe', 'Greece': 'gr', 'New Zealand': 'nz', 'Ukraine': 'ua', 'Hungary': 'hu', 'Kuwait': 'kw', 'Morocco': 'ma', 'Slovakia': 'sk', 'Ethiopia': 'et', 'Kenya': 'ke', 'Ecuador': 'ec', 'Puerto Rico': 'pr', 'Algeria': 'dz', 'Qatar': 'qa', 'Kazakhstan': 'kz', 'Dominican Republic': 'do', 'Guatemala': 'gt', 'Oman': 'om', 'Luxembourg': 'lu', 'Panama': 'pa', 'Bulgaria': 'bg', 'Croatia': 'hr', 'Ghana': 'gh', 'Uruguay': 'uy', 'Costa Rica': 'cr', 'Sri Lanka': 'lk', 'Lithuania': 'lt', 'Slovenia': 'si', 'Serbia': 'rs', 'Uzbekistan': 'uz', 'Myanmar': 'mm', 'Azerbaijan': 'az', 'Belarus': 'by', 'Tunisia': 'tn', 'Jordan': 'jo', 'Paraguay': 'py', 'Libya': 'ly', 'Bolivia': 'bo', 'Uganda': 'ug', 'Lebanon': 'lb', 'Cameroon': 'cm', 'Latvia': 'lv', 'Estonia': 'ee', 'Bahrain': 'bh', 'Nepal': 'np', 'Zambia': 'zm', 'Honduras': 'hn', 'Iceland': 'is', 'Senegal': 'sn', 'Cambodia': 'kh', 'Cyprus': 'cy', 'Zimbabwe': 'zw', 'Trinidad and Tobago': 'tt', 'El Salvador': 'sv', 'Bosnia and Herzegovina': 'ba', 'Afghanistan': 'af', 'Georgia': 'ge', 'Papua New Guinea': 'pg', 'Mali': 'ml', 'Albania': 'al', 'Malta': 'mt', 'Mozambique': 'mz', 'Botswana': 'bw', 'Gabon': 'ga', 'Jamaica': 'jm', 'Armenia': 'am', 'Mongolia': 'mn', 'Namibia': 'na', 'Brunei': 'bn', 'North Macedonia': 'mk', 'Madagascar': 'mg', 'Mauritius': 'mu', 'Nicaragua': 'ni', 'Moldova': 'md', 'Kosovo': 'xk', 'Chad': 'td', 'Rwanda': 'rw', 'Congo': 'cg', 'Laos': 'la', 'Kyrgyzstan': 'kg', 'Malawi': 'mw', 'Niger': 'ne', 'Haiti': 'ht', 'Tajikistan': 'tj', 'Benin': 'bj', 'Burkina Faso': 'bf', 'Mauritania': 'mr', 'Montenegro': 'me', 'Togo': 'tg', 'Fiji': 'fj', 'Barbados': 'bb', 'Eswatini': 'sz', 'Guyana': 'gy', 'Maldives': 'mv', 'Sierra Leone': 'sl', 'Suriname': 'sr', 'Somalia': 'so', 'Djibouti': 'dj', 'Burundi': 'bi', 'Belize': 'bz', 'Liberia': 'lr', 'Guinea': 'gn', 'Lesotho': 'ls', 'Timor-Leste': 'tl', 'Bahamas': 'bs', 'Equatorial Guinea': 'gq', 'Bhutan': 'bt', 'Solomon Islands': 'sb', 'Comoros': 'km', 'Cape Verde': 'cv', 'Sao Tome and Principe': 'st', 'Samoa': 'ws', 'Vanuatu': 'vu', 'Seychelles': 'sc', 'Antigua and Barbuda': 'ag', 'Andorra': 'ad', 'Grenada': 'gd', 'Tonga': 'to', 'Saint Lucia': 'lc', 'Kiribati': 'ki', 'Micronesia': 'fm', 'Saint Vincent and the Grenadines': 'vc', 'Dominica': 'dm', 'San Marino': 'sm', 'Liechtenstein': 'li', 'Monaco': 'mc', 'Palau': 'pw', 'Nauru': 'nr', 'Tuvalu': 'tv', 'Vatican City': 'va', 'Marshall Islands': 'mh', 'Saint Kitts and Nevis': 'kn', 'Australia': 'au', 'Angola': 'ao', 'Thailand': 'th', 'Tanzania': 'tz', 'Iraq': 'iq', 'Venezuela': 've', 'Iran': 'ir', 'Yemen': 'ye', 'Sudan': 'sd', 'Syria': 'sy', 'Eritrea': 'er', 'Central African Republic': 'cf', 'Guinea-Bissau': 'gw', 'Taiwan': 'tw', 'North Korea': 'kp', 'Cuba': 'cu', 'Turkmenistan': 'tm', 'Democratic Republic of the Congo': 'cd', 'South Sudan': 'ss', 'Gambia': 'gm', 'Western Sahara': 'eh', 'Palestine': 'ps', 'Greenland': 'gl', 'Hong Kong': 'hk', 'Macau': 'mo', 'Mayotte': 'yt', 'Réunion': 're' };
-            const code = countryToCode[name];
-            return code ? `https://flagcdn.com/w160/${code}.png` : null;
-        }
 
         function applyHighlight(layer) {
             layer.on('mouseover', function() {
                 this.setStyle({ fillOpacity: 0.5, weight: 3, color: 'white', fillColor: '#FFEB3B' });
             });
             layer.on('mouseout', function() {
-                if (this !== gameState.pulsingLayer) {
-                    this.setStyle({ fillOpacity: 1, weight: 1, color: 'white', fillColor: '#4CAF50' });
-                }
+                this.setStyle({ fillOpacity: 1, weight: 1, color: 'white', fillColor: '#4CAF50' });
             });
         }
 
@@ -102,55 +79,76 @@
             data.features.forEach(f => {
                 let name = f.properties.name;
                 if (name === 'Swaziland') name = 'Eswatini';
-                if (name !== 'United States' && name !== 'Somaliland') {
+                
+                // If it's the combined Morocco/Western Sahara shape, we label it just Morocco
+                // and we will add the separate Western Sahara shape later.
+                if (name === 'Morocco') {
+                    // Logic to adjust Morocco's display if needed can go here
+                }
+
+                if (name !== 'United States' && name !== 'Somaliland' && name !== 'Western Sahara') {
                     const l = L.geoJSON(f, { style: { fillColor: '#4CAF50', fillOpacity: 1, color: 'white', weight: 1 } }).addTo(map);
                     regionLayers[name] = l;
                     gameState.regions.push({ name });
                     applyHighlight(l);
-                    l.on('click', e => { handleRegionClick(name, e); });
+                    l.on('click', e => handleRegionClick(name, e));
                 }
             });
 
-            smallCountries.forEach(c => {
+            // MANUALLY ADD WESTERN SAHARA
+            const wsLayer = L.geoJSON({
+                "type": "Feature",
+                "properties": { "name": "Western Sahara" },
+                "geometry": westernSaharaGeo
+            }, { style: { fillColor: '#4CAF50', fillOpacity: 1, color: 'white', weight: 1 } }).addTo(map);
+            regionLayers["Western Sahara"] = wsLayer;
+            gameState.regions.push({ name: "Western Sahara" });
+            applyHighlight(wsLayer);
+            wsLayer.on('click', e => handleRegionClick("Western Sahara", e));
+
+            // ADD ISLANDS
+            extraIslands.forEach(c => {
                 const m = L.circleMarker([c.lat, c.lng], { radius: 6, fillColor: '#4CAF50', color: 'white', weight: 2, fillOpacity: 1 }).addTo(map);
-                smallCountryMarkers[c.name] = m;
+                regionLayers[c.name] = m;
                 gameState.regions.push({ name: c.name });
                 m.on('mouseover', function() { this.setStyle({ fillColor: '#FFEB3B', radius: 9 }); });
-                m.on('mouseout', function() { if (this !== gameState.pulsingLayer) this.setStyle({ fillColor: '#4CAF50', radius: 6 }); });
-                m.on('click', e => { handleRegionClick(c.name, e); });
+                m.on('mouseout', function() { this.setStyle({ fillColor: '#4CAF50', radius: 6 }); });
+                m.on('click', e => handleRegionClick(c.name, e));
             });
-
-            document.getElementById('total-regions').textContent = gameState.regions.length;
         }
 
         function handleRegionClick(name, e) {
-            if (!gameState.started || gameState.processing) return;
+            if (!gameState.started) return;
             const pt = map.mouseEventToContainerPoint(e.originalEvent);
             if (name === gameState.currentQuestion.name) {
-                gameState.score += 3;
+                gameState.score += 1;
                 document.getElementById('score-value').textContent = gameState.score;
                 nextQuestion();
             } else {
                 const fb = document.getElementById('on-screen-feedback');
                 fb.textContent = name; fb.style.left = pt.x + "px"; fb.style.top = pt.y + "px";
-                fb.classList.add('show'); setTimeout(() => fb.classList.remove('show'), 2000);
+                fb.classList.add('show'); setTimeout(() => fb.classList.remove('show'), 1500);
             }
         }
 
         function nextQuestion() {
-            if (gameState.remainingRegions.length === 0) return endGame();
+            if (gameState.remainingRegions.length === 0) {
+                document.getElementById('country-name').textContent = "WINNER!";
+                return;
+            }
             const idx = Math.floor(Math.random() * gameState.remainingRegions.length);
             gameState.currentQuestion = gameState.remainingRegions.splice(idx, 1)[0];
             document.getElementById('country-name').textContent = gameState.currentQuestion.name;
-            const flag = getCountryFlag(gameState.currentQuestion.name);
-            const img = document.getElementById('country-flag');
-            img.src = flag || ''; img.style.display = flag ? 'block' : 'none';
         }
 
-        function startGame() { gameState.started = true; gameState.remainingRegions = [...gameState.regions]; nextQuestion(); }
-        function endGame() { document.getElementById('completion-screen').style.display = 'block'; }
-        document.getElementById('question-container').onclick = startGame;
-        document.getElementById('restart-button').onclick = () => location.reload();
+        document.getElementById('question-container').onclick = () => {
+            if(!gameState.started) {
+                gameState.started = true;
+                gameState.remainingRegions = [...gameState.regions];
+                nextQuestion();
+            }
+        };
+
         window.onload = init;
     </script>
 </body>
